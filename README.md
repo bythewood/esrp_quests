@@ -9,3 +9,10 @@ ESRP_Quests offers an easy way to implement quests into your RedM server! Via th
 - [esrp_dialog](https://github.com/bythewood/esrp_dialog)
 ## Progress
 [Trello](https://trello.com/c/PRHdadE4/17-quests)
+
+## Credits
+[redemrp_quests](https://github.com/RedEM-RP/redemrp_quests)
+
+[Ktos93](http://github.com/Ktos93)
+
+[amakuu](http://github.com/amakuu)
