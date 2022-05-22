@@ -194,7 +194,7 @@ function StartQuest(quest)
         end
       end
       while started do
-        Wait(0)
+        Wait(100)
         local coords3 = GetEntityCoords(PlayerPedId())
         local holding = Citizen.InvokeNative(0xD806CD2A4F2C2996, PlayerPedId())
         local model = GetEntityModel(holding)
