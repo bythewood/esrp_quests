@@ -20,9 +20,9 @@ function CreateDialogs()
     for k, v in pairs(Config.Quests) do
 
     TriggerEvent("ESRP_Dialog:createDialog", tonumber(Config.StartCount + k), Config.NPCTitle, Config.Quests[k]["Talk"]["Desc"], {
-      {name = Config.Quests[k]["Talk"]["1"], func = function(source) TriggerClientEvent('ESRP_Quests:StartQuest', source, Config.Quests[k]["Type"], Config.Quests[k]["Reward"], Config.Quests[k]["Xp"], Config.Quests[k]["Goal"]["Name"], Config.Quests[k]["Goal"]["Pos"], Config.Quests[k]["Goal"]["Aggro"], Config.Quests[k]["Goal"]["Guards"]) end, focusOFF = true},
-      {name = Config.Quests[k]["Talk"]["2"], func = function(source) TriggerClientEvent('ESRP_Quests:MissionTalkReply', source, Config.Quests[k]["Reply"]["2"]) end, focusOFF = true},
-      {name = Config.Quests[k]["Talk"]["3"], func = function(source) TriggerClientEvent('ESRP_Quests:MissionTalkReply', source, Config.Quests[k]["Reply"]["3"]) end, focusOFF = true},
+      {name = Config.Quests[k]["Talk"]["1"], func = function(source) TriggerClientEvent('ESRP_Quests:StartQuest', source, Config.Quests[k]) end, focusOFF = true},
+      {name = Config.Quests[k]["Talk"]["2"], func = function(source) TriggerClientEvent('vorp:TipRight', source, Config.Quests[k]["Reply"]["2"], 5000) end, focusOFF = true},
+      {name = Config.Quests[k]["Talk"]["3"], func = function(source) TriggerClientEvent('vorp:TipRight', source, Config.Quests[k]["Reply"]["3"], 5000) end, focusOFF = true},
     })
     end
   end)
@@ -40,12 +40,12 @@ AddEventHandler("ESRP_Quests:CheckItem", function(itemName, money, xp)
 	local count = VORP.getItemCount(_source, itemName)
   if count >= 1 then
     VORP.subItem(_source, itemName, 1)
-    TriggerClientEvent("ESRP_Quests:FinishMissionType1", _source)
+    TriggerClientEvent("vorp:TipBottom", _source, Config.DeliveryInfo, 5000)
     TriggerEvent('vorp:getCharacter', _source, function(user)
       TriggerEvent("vorp:addMoney", _source, 0, money, _user)
     end)
   else
-    TriggerClientEvent("ESRP_Quests:MissionType1Failure", _source)
+    TriggerClientEvent("vorp:TipBottom", _source, Config.FailureInfo, 5000)
   end
 end)
 
@@ -55,7 +55,7 @@ AddEventHandler("ESRP_Quests:Payout", function(money, xp)
   TriggerEvent('vorp:getCharacter', _source, function(user)
     TriggerEvent("vorp:addMoney", _source, 0, tonumber(money * 1.2), _user)
   end)
-  TriggerClientEvent("ESRP_Quests:FinishMissionType2", _source)
+  TriggerClientEvent("vorp:Tip", _source, Config.DeliveryInfo, 5000)
 end)
 
 RegisterNetEvent("ESRP_Quests:Payout2")
@@ -64,5 +64,5 @@ AddEventHandler("ESRP_Quests:Payout2", function(money, xp)
   TriggerEvent('vorp:getCharacter', _source, function(user)
     TriggerEvent("vorp:addMoney", _source, 0, tonumber(money * 1.2), _user)
   end)
-  TriggerClientEvent("ESRP_Quests:FinishMissionType3", _source)
+  TriggerClientEvent("vorp:Tip", _source, Config.DeliveryInfo, 5000)
 end)
