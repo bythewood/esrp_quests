@@ -1,6 +1,6 @@
 ### ESRP_Quests
 ## Prelude
-ESRP_Quests and ESRP_Dialog were originally created by **OfficiallyM-**.  
+ESRP_Quests and ESRP_Dialog were originally created by **OfficiallyM**.  
 It is now being maintained and updated by a medical crab.  
 ## Description
 ESRP_Quests offers an easy way to implement quests into your RedM server! Via the config file, you can add a variety of mission providers and types for your players to enjoy!
