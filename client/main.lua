@@ -98,7 +98,7 @@ function StartQuest(quest)
   questRewards.Xp = 0
   if quest["Xp"] ~= nil then questRewards.Xp = quest["Xp"] end
   questRewards.Items = {}
-  if quest["RewardItems"] ~= nil then questRewards.Items = quest["RewardItems"] end
+  if quest["Items"] ~= nil then questRewards.Items = quest["Items"] end
 
   local questTargets = {}
   if quest["Targets"] ~= nil then questTargets = quest["Targets"] end
