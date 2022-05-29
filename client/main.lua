@@ -41,7 +41,16 @@ Citizen.CreateThread(function() -- sets up the quest giver NPCs and, hopefully, 
     local heading = Config.Npc[z]["Heading"]
     ModelRequest(model)
     local npc = CreatePed(model, pos.x, pos.y, pos.z, heading, false, false, 0, 0)
-    while not DoesEntityExist(npc) do Wait(500) end
+    local attempts = 0
+    while not DoesEntityExist(npc) do
+      attempts = attempts + 1
+      Wait(500)
+      if attempts >= 20 then -- spawn failed, try again, a bit higher
+        pos.z = pos.z
+        npc = CreatePed(model, pos.x, pos.y, pos.z, heading, false, false, 0, 0)
+        attempts = 0
+      end
+    end
     Citizen.InvokeNative(0x283978A15512B2FE, npc, true)
     Citizen.InvokeNative(0x013A7BA5015C1372, npc, true)
     FreezeEntityPosition(npc, true)
@@ -54,12 +63,6 @@ Citizen.CreateThread(function() -- sets up the quest giver NPCs and, hopefully, 
     SetBlockingOfNonTemporaryEvents(npc, true)
     SetModelAsNoLongerNeeded(model)
     loadedNPCs[#loadedNPCs+1] = npc
-  end
-  while true do
-    Wait(5000)
-    for _, _npc in ipairs(loadedNPCs) do
-      TaskStandStill(_npc, -1)
-    end
   end
 end)
 
@@ -220,6 +223,7 @@ function StartQuest(quest)
         if questStarted then
           ModelRequest(model)
           npc = CreatePed(model, pos.x, pos.y, pos.z, true, true)
+          local attempts = 0
           while not DoesEntityExist(npc) do
             attempts = attempts + 1
             Wait(500)
@@ -329,7 +333,16 @@ function StartQuest(quest)
           local model = GetHashKey(guard)
           ModelRequest(model)
           local npc = CreatePed(model, math.random(-20, 20) + pos.x, math.random(-20, 20) + pos.y, pos.z, true, true)
-          while not DoesEntityExist(npc) do Wait(500) end
+          local attempts = 0
+          while not DoesEntityExist(npc) do
+            attempts = attempts + 1
+            Wait(500)
+            if attempts >= 20 then -- spawn failed, try again, a bit higher
+              pos.z = pos.z + 0.2
+              npc = CreatePed(model, math.random(-20, 20) + pos.x, math.random(-20, 20) + pos.y, pos.z, true, true)
+              attempts = 0
+            end
+          end
           Citizen.InvokeNative(0x283978A15512B2FE, npc, true)
           SetModelAsNoLongerNeeded(model)
           Citizen.InvokeNative(0xF166E48407BAC484, npc, PlayerPedId(), 0, 16)
