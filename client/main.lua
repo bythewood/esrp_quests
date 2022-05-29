@@ -1,30 +1,23 @@
 local TalkGroup = GetRandomIntInRange(0, 0xffffff)
-local active = false
-local started = false
-local gathered = false
-local delivered = false
-local BackBlipShowing = false
-local TalkPrompt
-local blip
-local animal
-local Killblip
-local NPCMissions = {}
-local spawnedGuards = {}
-local next = next
+local spawnedNPCs = {}
+local questStarted = false
+local returnBlip = false
 
-Citizen.CreateThread(function()
+Citizen.CreateThread(function() -- sets up quest dialog
+  Wait(0)
+  local active = false
   TalkPrompt()
   TriggerServerEvent("ESRP_Quests:InitiateQuests")
   Debug("Initating Quests...")
   while true do
-    Wait(0)
+    Wait(0) -- waits avoid freezes, however must be 0 for following frame-reliant code
     local pedCoords = GetEntityCoords(PlayerPedId())
     for k, v in pairs(Config.Npc) do
       local dist = Vdist(pedCoords , Config.Npc[k]["Pos"].x, Config.Npc[k]["Pos"].y, Config.Npc[k]["Pos"].z)
-      if dist <= 2.0 then
-        if not active and not started then
-          local Nazwa  = CreateVarString(10, 'LITERAL_STRING', Config.Talktext .. " ~t6~" .. Config.Npc[k]["Name"] .. "~q~")
-          PromptSetActiveGroupThisFrame(TalkGroup, Nazwa)
+      if dist <= 3 then
+        if not active and not questStarted then
+          local chatBox  = CreateVarString(10, 'LITERAL_STRING', Config.Talktext .. " ~t6~" .. Config.Npc[k]["Name"] .. "~q~")
+          PromptSetActiveGroupThisFrame(TalkGroup, chatBox)
           if PromptHasHoldModeCompleted(TalkPrompt) then
             active = true
             Debug("Talking with " .. Config.Npc[k]["Name"])
@@ -39,228 +32,326 @@ Citizen.CreateThread(function()
   end
 end)
 
-Citizen.CreateThread(function()
+Citizen.CreateThread(function() -- sets up the quest giver NPCs and, hopefully, keeps them passive
+  Wait(0)
+  local loadedNPCs = {}
   for z, x in pairs(Config.Npc) do
-    while not HasModelLoaded( GetHashKey(Config.Npc[z]["Model"]) ) do
-      Wait(500)
-      modelrequest( GetHashKey(Config.Npc[z]["Model"]) )
-    end
-    local npc = CreatePed(GetHashKey(Config.Npc[z]["Model"]), Config.Npc[z]["Pos"].x, Config.Npc[z]["Pos"].y, Config.Npc[z]["Pos"].z, Config.Npc[z]["Heading"], false, false, 0, 0)
-    while not DoesEntityExist(npc) do
-      Wait(300)
-    end
+    local model = GetHashKey(Config.Npc[z]["Model"])
+    local pos = Config.Npc[z]["Pos"]
+    local heading = Config.Npc[z]["Heading"]
+    ModelRequest(model)
+    local npc = CreatePed(model, pos.x, pos.y, pos.z, heading, false, false, 0, 0)
+    while not DoesEntityExist(npc) do Wait(500) end
     Citizen.InvokeNative(0x283978A15512B2FE, npc, true)
+    Citizen.InvokeNative(0x013A7BA5015C1372, npc, true)
     FreezeEntityPosition(npc, true)
     SetEntityInvincible(npc, true)
     TaskStandStill(npc, -1)
     Wait(100)
-    SET_PED_RELATIONSHIP_GROUP_HASH(npc, GetHashKey(Config.Npc[z]["Model"]))
+    SET_PED_RELATIONSHIP_GROUP_HASH(npc, model)
     SetEntityCanBeDamagedByRelationshipGroup(npc, false, `PLAYER`)
     SetEntityAsMissionEntity(npc, true, true)
-    SetModelAsNoLongerNeeded(GetHashKey(Config.Npc[z]["Model"]))
+    SetModelAsNoLongerNeeded(model)
+    loadedNPCs[#loadedNPCs+1] = npc
   end
-end)
-
-Citizen.CreateThread(function()
-  Wait(100)
-  if Config.ShowBlips then
-    for b, n in pairs(Config.Npc) do
-      local blip = Citizen.InvokeNative(0x554d9d53f696d002, 1664425300, Config.Npc[b]["Pos"].x, Config.Npc[b]["Pos"].y, Config.Npc[b]["Pos"].z)
-      SetBlipSprite(blip, Config.Npc[b]["Blip"])
-      Citizen.InvokeNative(0x9CB1A1623062F402, blip, Config.Npc[b]["Name"])
+  while true do
+    Wait(5000)
+    for _, _npc in ipairs(loadedNPCs) do
+      TaskStandStill(_npc, -1)
     end
   end
 end)
 
-RegisterNetEvent('ESRP_Quests:StartQuest')
+Citizen.CreateThread(function() -- displays blips for quest givers, if configured
+  Wait(100)
+  if Config.ShowBlips then
+    for _, npc in ipairs(Config.Npc) do
+      local blip = Citizen.InvokeNative(0x554d9d53f696d002, 1664425300, npc["Pos"].x, npc["Pos"].y, npc["Pos"].z)
+      SetBlipSprite(blip, npc["Blip"])
+      Citizen.InvokeNative(0x9CB1A1623062F402, blip, npc["Name"])
+    end
+  end
+end)
+
+RegisterNetEvent('ESRP_Quests:StartQuest') -- handler for start quest coming from server
 AddEventHandler('ESRP_Quests:StartQuest', function(quest)
   quest["SavedCoords"] = GetEntityCoords(PlayerPedId())
   StartQuest(quest)
 end)
 
-function StartQuest(quest)
-  if quest["Type"] == 1 then
-    started = true
-    gathered = false
-    local _var1 = quest["SavedCoords"]
-    local _var2 = quest["Reward"]
-    local _var3 = quest["Xp"]
-    local _var4 = quest["Goal"]["Name"]
-    local _var5 = quest["Goal"]["Pos"]
-    TriggerEvent("vorp:TipBottom", Config.Info, 5000)
-    Citizen.CreateThread(function()
-      Wait(0)
-      ShowItemBlip(_var5)
-      ShowItemCircle(_var5)
-      while started do
-        Wait(0)
-        local coords2 = GetEntityCoords(PlayerPedId())
-        local distance = Vdist(coords2.x, coords2.y, coords2.z, _var5.x, _var5.y, _var5.z)
-        if distance < 2.5 and not gathered then
-          gathered = true
-          TriggerServerEvent("ESRP_Quests:GatherItem", _var4)
-          Debug("Gathered ITEM: " .. _var4)
-        elseif gathered and not delivered then
-          TriggerEvent("vorp:Tip", Config.Info2, 1000)
-          RemoveBlip(blip)
-          ShowBackBlip(_var1)
-          local distance2 = Vdist(coords2.x, coords2.y, coords2.z, _var1.x, _var1.y, _var1.z)
-          if distance2 < 2.5 and gathered and not delivered then
-            Debug("Delivered ITEM: " .. _var4 .. " At POS: " .. _var1)
-            TriggerServerEvent("ESRP_Quests:CheckItem", _var4, _var2, _var3)
-            delivered = true
-            BackBlipShowing = false
-            QuestCleanup()
-          end
-        end
-      end
-    end)
-  elseif quest["Type"] == 2 then
-    started = true
-    gathered = false
-    local _var1 = quest["SavedCoords"]
-    local _var2 = quest["Reward"]
-    local _var3 = quest["Xp"]
-    local _var4 = quest["Goal"]["Name"]
-    local _var5 = quest["Goal"]["Pos"]
-    local _var6 = quest["Goal"]["Aggro"]
-    TriggerEvent("vorp:TipBottom", Config.Info, 5000)
-    Citizen.CreateThread(function()
-      if started and not gathered then
-        while not HasModelLoaded( GetHashKey(_var4) ) do
-          Wait(500)
-          modelrequest( GetHashKey(_var4) )
-        end
-        animal = CreatePed(GetHashKey(_var4), _var5.x, _var5.y, _var5.z, true, true)
-        while not DoesEntityExist(animal) do
-          Wait(300)
-        end
-        Citizen.InvokeNative(0x283978A15512B2FE, animal, true)
-        Killblip = Citizen.InvokeNative(0x23f74c2fda6e7c61, 953018525, animal)
-        Citizen.InvokeNative(0x9CB1A1623062F402, Killblip, 'Goal')
-        SetModelAsNoLongerNeeded(GetHashKey(_var4))
-        if _var6 then
-          Citizen.InvokeNative(0xF166E48407BAC484, animal, PlayerPedId(), 0, 16)
-          TriggerServerEvent("ESRP_Quests:AggroTarget", animal, PlayerPedId())
-        end
-      end
-      while started do
-        Wait(0)
-        local coords3 = GetEntityCoords(PlayerPedId())
-        if IsEntityDead(animal) and not delivered then
-          gathered = true
-          TriggerEvent("vorp:Tip", Config.Info3, 1000)
-          RemoveBlip(Killblip)
-          ShowBackBlip(_var1)
+--[[ The main quest handler is below. ]]--
 
-          local distance3 = Vdist(coords3.x, coords3.y, coords3.z, _var1.x, _var1.y, _var1.z)
-          if distance3 < 2.5 and gathered and not delivered then
-            delivered = true
-            BackBlipShowing = false
-            Debug("Mission Type 2 Completed: " .. _var4 .. " At POS: " .. _var1)
-            TriggerServerEvent("ESRP_Quests:Payout", _var2, _var3)
-            QuestCleanup()
+function StartQuest(quest)
+  Debug("Starting quest...")
+  local quest = quest
+  questStarted = true
+  returnBlip = false
+
+  local savedCoords = quest["SavedCoords"]
+
+  local questRewards = {}
+  questRewards.Cash = 0
+  if quest["Cash"] ~= nil then questRewards.Cash = quest["Cash"] end
+  if quest["Reward"] ~= nil then questRewards.Cash = questRewards.Cash + quest["Reward"] end
+  questRewards.Gold = 0
+  if quest["Gold"] ~= nil then questRewards.Gold = quest["Gold"] end
+  questRewards.Xp = 0
+  if quest["Xp"] ~= nil then questRewards.Xp = quest["Xp"] end
+  questRewards.Items = {}
+  if quest["RewardItems"] ~= nil then questRewards.Items = quest["RewardItems"] end
+
+  local questTargets = {}
+  if quest["Targets"] ~= nil then questTargets = quest["Targets"] end
+  if quest["Target"] ~= nil then questTargets[#questTargets+1] = quest["Target"] end
+  if quest["Goal"] ~= nil then questTargets[#questTargets+1] = quest["Goal"] end
+  
+  local questTargetsTotal = #questTargets
+  local questTargetsRemain = #questTargets
+
+  local questType = 3
+  if quest["Type"] ~= nil then questType = quest["Type"] end
+
+  Debug(questTargetsTotal .. " total targets. Quest type: " .. questType)
+
+  for targetNum, target in ipairs(questTargets) do
+    if questType == 1 then
+      Citizen.CreateThread(function() -- handle setup and gathering of each item
+        Wait(0)
+        Debug(targetNum .. ": Setup and gathering handler running...")
+        local name = target["Name"]
+        local pos = target["Pos"]
+        local gathered = false
+        local itemBlip = nil
+        Citizen.CreateThread(function() -- show item blip while not gathered
+          Debug(targetNum .. ": Show item blip...")
+          local pos = pos
+          if Config.ItemShow == 1 and not gathered then
+            AllowSonarBlips(true)
+            while not gathered do
+              Wait(1000)
+              ForceSonarBlipsThisFrame()
+              TriggerSonarBlip(348490638, pos.x, pos.y, pos.z)
+            end
+          elseif Config.ItemShow == 2 and not gathered then
+            itemBlip = Citizen.InvokeNative(0x554d9d53f696d002, 1664425300, pos.x, pos.y, pos.z)
+            SetBlipSprite(itemBlip, Config.ItemBlipSprite)
+            Citizen.InvokeNative(0x9CB1A1623062F402, itemBlip, Config.ItemBlipNameOnMap)
           end
-        end
-      end
-    end)
-  elseif quest["Type"] == 3 then
-    started = true
-    gathered = false
-    local _var1 = quest["SavedCoords"]
-    local _var2 = quest["Reward"]
-    local _var3 = quest["Xp"]
-    local _var4 = quest["Goal"]["Name"]
-    local _var5 = quest["Goal"]["Pos"]
-    local _var6 = quest["Goal"]["Aggro"]
-    TriggerEvent("vorp:TipBottom", Config.Info, 5000)
-    Citizen.CreateThread(function()
-      if started and not gathered then
-        while not HasModelLoaded( GetHashKey(_var4) ) do
-          Wait(500)
-          modelrequest( GetHashKey(_var4) )
-        end
-        animal = CreatePed(GetHashKey(_var4), _var5.x, _var5.y, _var5.z, true, true)
-        while not DoesEntityExist(animal) do
-          Wait(300)
-        end
-        Citizen.InvokeNative(0x283978A15512B2FE, animal, true)
-        Killblip = Citizen.InvokeNative(0x23f74c2fda6e7c61, 953018525, animal)
-        Citizen.InvokeNative(0x9CB1A1623062F402, Killblip, 'Goal')
-        SetModelAsNoLongerNeeded(GetHashKey(_var4))
-        if _var6 then
-          Citizen.InvokeNative(0xF166E48407BAC484, animal, PlayerPedId(), 0, 16)
-          TriggerServerEvent("ESRP_Quests:AggroTarget", animal, PlayerPedId())
-        end
-      end
-      while started do
-        Wait(100)
-        local coords3 = GetEntityCoords(PlayerPedId())
-        local holding = Citizen.InvokeNative(0xD806CD2A4F2C2996, PlayerPedId())
-        local model = GetEntityModel(holding)
-        if (IsEntityDead(animal) or IsPedHogtied(animal)) and not delivered then
-          gathered = true
-          TriggerEvent("vorp:Tip", Config.Info4, 1000)
-          RemoveBlip(Killblip)
-          ShowBackBlip(_var1)
-          local distance3 = Vdist(coords3.x, coords3.y, coords3.z, _var1.x, _var1.y, _var1.z)
-          if distance3 < 2.5 and gathered and not delivered then
-            holding = Citizen.InvokeNative(0xD806CD2A4F2C2996, PlayerPedId())
-            model = GetEntityModel(holding)
-            if holding ~= false then
-              entity = holding
-              Citizen.InvokeNative(0xC7F0B43DCDC57E3D, PlayerPedId(), entity, GetEntityCoords(PlayerPedId()), 10.0, true)
-              Wait(500)
-              SetEntityAsMissionEntity(entity, true, true)
-              Wait(500)
-              DetachEntity(entity, 1, 1)
-              Wait(500)
-              SetEntityCoords(entity, 0.0,0.0,0.0)
-              Wait(500)
-              DeleteEntity(entity)
-              Wait(300)
-              delivered = true
-              BackBlipShowing = false
-              TriggerServerEvent("ESRP_Quests:Payout2", _var2, _var3)
-              QuestCleanup()
+        end)
+        Citizen.CreateThread(function() -- show item circle while not gathered
+          Debug(targetNum .. ": Show item circle...")
+          local pos = pos
+          while not gathered do
+            Wait(0)
+            if Config.ShowCircle and not gathered then
+              Citizen.InvokeNative(0x2A32FAA57B937173, -1795314153, pos.x, pos.y, pos.z, 1.0, 1.0, 1.0, 0.0, 0.0, 0.0, 2.0, 2.0, 1.5, Config.CircleColor[1], Config.CircleColor[2], Config.CircleColor[3], Config.CircleColor[4], true, false, 1, true)
             end
           end
+        end)
+        TriggerEvent("vorp:Tip", Config.Info, 5000)
+        if questStarted and not gathered then Debug(targetNum .. ": Waiting for gather...") end
+        while questStarted and not gathered do -- while waiting and checking for gathering
+          Wait(1000)
+          local coords = GetEntityCoords(PlayerPedId())
+          local distance = Vdist(coords.x, coords.y, coords.z, pos.x, pos.y, pos.z)
+          if distance < 3 then -- is gathered, set thread breaks with gathered = true
+            gathered = true
+            Debug(targetNum .. ": Gathered, breaking gather loop, cleanup ensuing...")
+            break
+          end
+        end
+        -- handle gathering cleanup, end of gather thread
+        TriggerServerEvent("ESRP_Quests:GatherItem", name)
+        if itemBlip ~= nil then RemoveBlip(itemBlip) end
+        questTargetsRemain = questTargetsRemain - 1
+        if questTargetsRemain > 0 then 
+          TriggerEvent("vorp:TipRight", questTargetsRemain .. " items remaining.", 5000)
+        end
+      end)
+    elseif questType == 2 then
+      Citizen.CreateThread(function() -- handle setup and kill tracking
+        Wait(0)
+        local name = target["Name"]
+        local pos = target["Pos"]
+        local aggro = target["Aggro"]
+        local model = GetHashKey(name)
+        Debug("t" .. targetNum .. ": name: " .. name .. ", aggro: " .. tostring(aggro) .. ", model: " .. tostring(model))
+        TriggerEvent("vorp:Tip", Config.Info, 5000)
+        ModelRequest(model)
+        local npc = CreatePed(model, pos.x, pos.y, pos.z, true, true)
+        while not DoesEntityExist(npc) do Wait(500) end
+        spawnedNPCs[#spawnedNPCs+1] = npc
+        Citizen.InvokeNative(0x283978A15512B2FE, npc, true)
+        local blip = Citizen.InvokeNative(0x23f74c2fda6e7c61, 953018525, npc)
+        Citizen.InvokeNative(0x9CB1A1623062F402, blip, 'Quest Target')
+        SetModelAsNoLongerNeeded(model)
+        if aggro then
+          Citizen.InvokeNative(0xF166E48407BAC484, npc, PlayerPedId(), 0, 16)
+          TriggerServerEvent("ESRP_Quests:AggroTarget", npc, PlayerPedId())
+        end
+        while questStarted and not IsEntityDead(npc) do
+          Wait(500)
+        end
+        RemoveBlip(blip)
+        if IsEntityDead(npc) then
+          questTargetsRemain = questTargetsRemain - 1
+          TriggerEvent("vorp:TipRight", "Target killed. " .. questTargetsRemain .. " targets remaining.", 5000)
+        end
+      end)
+    elseif questType == 3 then
+      Citizen.CreateThread(function() -- handle setup and gathering of each target
+        Wait(0)
+        local name = target["Name"]
+        local pos = target["Pos"]
+        local aggro = target["Aggro"]
+        local model = GetHashKey(name)
+        local npc = nil
+        TriggerEvent("vorp:Tip", Config.Info, 5000)
+        if questStarted then
+          ModelRequest(model)
+          npc = CreatePed(model, pos.x, pos.y, pos.z, true, true)
+          while not DoesEntityExist(npc) do Wait(500) end
+          spawnedNPCs[#spawnedNPCs+1] = npc
+          Citizen.InvokeNative(0x283978A15512B2FE, npc, true)
+          local blip = Citizen.InvokeNative(0x23f74c2fda6e7c61, 953018525, npc)
+          Citizen.InvokeNative(0x9CB1A1623062F402, blip, 'Goal')
+          SetModelAsNoLongerNeeded(model)
+          if aggro then
+            Citizen.InvokeNative(0xF166E48407BAC484, npc, PlayerPedId(), 0, 16)
+            TriggerServerEvent("ESRP_Quests:AggroTarget", npc, PlayerPedId())
+          end
+        end
+        while questStarted and not IsEntityDead(npc) and not IsPedHogtied(npc) do Wait(500) end -- wait for capture or kill
+        Debug("t" .. targetNum .. ": Target captured or killed...")
+        while questStarted do -- wait for holding at target
+          Wait(500)
+          local coords = GetEntityCoords(PlayerPedId())
+          local npcCoords = GetEntityCoords(npc)
+          local distance = Vdist(coords.x, coords.y, coords.z, npcCoords.x, npcCoords.y, npcCoords.z)
+          local holding = Citizen.InvokeNative(0xD806CD2A4F2C2996, PlayerPedId())
+          if holding ~= false then -- check if something picked up
+            if distance < 3 or npc == holding then -- the distance exception is to allow for skin collection too
+              npc = holding
+              break
+            end
+          end
+        end
+        Debug("t" .. targetNum .. ": Target picked up... ")
+        TriggerEvent("vorp:Tip", Config.Info4, 5000)
+        ShowReturnBlip(savedCoords)
+        while questStarted do -- wait for return of target
+          Wait(500)
+          local coords = GetEntityCoords(PlayerPedId())
+          local distance = Vdist(coords.x, coords.y, coords.z, savedCoords.x, savedCoords.y, savedCoords.z)
+          local holding = Citizen.InvokeNative(0xD806CD2A4F2C2996, PlayerPedId())
+          local holdingModel = GetEntityModel(holding)
+          if distance < 3 and holding ~= false then -- in range of return, and holding an entity
+            if holding == npc then -- confirms is holding same entity picked up earlier
+              Citizen.InvokeNative(0xC7F0B43DCDC57E3D, PlayerPedId(), npc, coords.x, coords.y, coords.z, 10.0, true)
+              Wait(500)
+              SetEntityAsMissionEntity(npc, true, true)
+              Wait(500)
+              DetachEntity(npc, 1, 1)
+              Wait(500)
+              SetEntityCoords(npc, 0.0, 0.0, 0.0)
+              Wait(500)
+              DeleteEntity(npc)
+              questTargetsRemain = questTargetsRemain - 1
+              TriggerEvent("vorp:TipRight", "Target returned. " .. questTargetsRemain .. " targets remaining.", 5000)
+              break
+            end
+          end
+        end
+      end)
+    end
+  end
+  Citizen.CreateThread(function() -- handle return, quest rewards, and cleanup
+    Wait(1000)
+    while questTargetsRemain > 0 and questStarted do Wait(1000) end
+    if questStarted then
+      ShowReturnBlip(savedCoords)
+      if questType == 1 then
+        TriggerEvent("vorp:TipBottom", Config.Info2, 10000)
+      elseif questType == 2 then
+        TriggerEvent("vorp:TipBottom", Config.Info3, 10000)
+      end
+    end
+    while questStarted do
+      Wait(1000)
+      local coords = GetEntityCoords(PlayerPedId())
+      local distance = Vdist(coords.x, coords.y, coords.z, savedCoords.x, savedCoords.y, savedCoords.z)
+      if distance < 3 then -- player has returned, end return blip thread and break loop
+        returnBlip = false
+        break
+      end
+    end
+    if questStarted then
+      if questType == 1 then
+        -- server side check items and give rewards
+        TriggerServerEvent("ESRP_Quests:ItemsReturned", questTargets, questRewards)
+      elseif questType == 2 or questType == 3 then
+        -- server side give rewards
+        TriggerServerEvent("ESRP_Quests:GiveRewards", questRewards)
+      end
+      Wait(Config.Cooldown) -- forced cooldown
+      questStarted = false -- allows another quest to be taken
+      PurgeNPCs() -- purge quest-spawned npcs
+      TriggerEvent("vorp:Tip", "You may now take another quest.", 10000)
+    else
+      PurgeNPCs() -- purge quest-spawned npcs
+    end
+  end)
+  for _, target in ipairs(questTargets) do
+    Citizen.CreateThread(function()
+      Wait(0)
+      local guards = target["Guards"]
+      local pos = target["Pos"]
+      if guards ~= nil then
+        for _, guard in ipairs(guards) do
+          local model = GetHashKey(guard)
+          ModelRequest(model)
+          local npc = CreatePed(model, math.random(-20, 20) + pos.x, math.random(-20, 20) + pos.y, pos.z, true, true)
+          while not DoesEntityExist(npc) do Wait(500) end
+          Citizen.InvokeNative(0x283978A15512B2FE, npc, true)
+          SetModelAsNoLongerNeeded(model)
+          Citizen.InvokeNative(0xF166E48407BAC484, npc, PlayerPedId(), 0, 16)
+          TriggerServerEvent("ESRP_Quests:AggroTarget", npc, PlayerPedId())
+          spawnedNPCs[#spawnedNPCs+1] = npc
         end
       end
     end)
   end
-  Citizen.CreateThread( function()
-    local guards = quest["Goal"]["Guards"]
-    local pos = quest["Goal"]["Pos"]
-    if guards ~= nil then
-      if next(guards) ~= nil then
-        for _, guard_model in ipairs(guards) do
-          while not HasModelLoaded(GetHashKey(guard_model)) do
-            Wait(500)
-            modelrequest(GetHashKey(guard_model))
-          end
-          guard = CreatePed(GetHashKey(guard_model), math.random(-10, 10) + pos.x, math.random(-10, 10) + pos.y, pos.z, true, true)
-          while not DoesEntityExist(guard) do
-            Wait(300)
-          end
-          Citizen.InvokeNative(0x283978A15512B2FE, guard, true)
-          SetModelAsNoLongerNeeded(GetHashKey(guard_model))
-          Citizen.InvokeNative(0xF166E48407BAC484, guard, PlayerPedId(), 0, 16)
-          TriggerServerEvent("ESRP_Quests:AggroTarget", guard, PlayerPedId())
-          spawnedGuards[#spawnedGuards+1] = guard
-        end
-      end
+end
+
+--[[ The main quest handler is above. ]]--
+
+--[[ DEVS BEWARE, FOR BEYOND HERE THERE BE FUNCTIONS ]]--
+
+function QuestCancel()
+  Citizen.CreateThread(function()
+    Wait(0)
+    if questStarted then
+      TriggerEvent("vorp:Tip", "Quest will be forcibly cancelled after the configured cooldown time, to avoid abuse.", 10000)
+      Wait(Config.Cooldown) -- forced cooldown
+      questStarted = false
+      Wait(3000)
+      PurgeNPCs()
+      TriggerEvent("vorp:Tip", "You may now take another quest.", 10000)
+    else
+      TriggerEvent("vorp:Tip", "You're not on a quest...", 10000)
     end
   end)
 end
+RegisterCommand("questcancel", function() QuestCancel() end)
+RegisterCommand("qcancel", function() QuestCancel() end)
 
 function TalkPrompt()
   Citizen.CreateThread(function()
-    local str = Config.Presstext
+    Wait(0)
     local wait = 0
     TalkPrompt = Citizen.InvokeNative(0x04F97DE45A519419)
     PromptSetControlAction(TalkPrompt, 0xC7B5340A)
-    str = CreateVarString(10, 'LITERAL_STRING', str)
+    local str = CreateVarString(10, 'LITERAL_STRING', Config.Presstext)
     PromptSetText(TalkPrompt, str)
     PromptSetEnabled(TalkPrompt, true)
     PromptSetVisible(TalkPrompt, true)
@@ -270,69 +361,31 @@ function TalkPrompt()
   end)
 end
 
-function QuestCleanup()
-  Wait(Config.Cooldown)
-  started = false
-  gathered = false
-  delivered = false
-  PurgeGuards()
-end
-
-function PurgeGuards()
-  if next(spawnedGuards) ~= nil then
-    for _, guard in ipairs(spawnedGuards) do
-      DeleteEntity(guard)
-      Wait(10)
-    end
-    spawnedGuards = {}
+function PurgeNPCs()
+  Debug("Purging " .. tostring(#spawnedNPCs) .. " NPCs...")
+  for _, npc in ipairs(spawnedNPCs) do
+    DeleteEntity(npc)
+    Wait(100)
   end
+  spawnedNPCs = {}
 end
 
-function ShowItemBlip(var)
-  local _var = var
-  Citizen.CreateThread(function()
-    if Config.ItemShow == 1 and not gathered then
-      AllowSonarBlips(true)
-      while not gathered do
-        Wait(1000)
-        ForceSonarBlipsThisFrame()
-        TriggerSonarBlip(348490638, _var.x, _var.y, _var.z)
-      end
-    elseif Config.ItemShow == 2 and not gathered then
-      blip = Citizen.InvokeNative(0x554d9d53f696d002, 1664425300, _var.x, _var.y, _var.z)
-      SetBlipSprite(blip, Config.ItemBlipSprite)
-      Citizen.InvokeNative(0x9CB1A1623062F402, blip, Config.ItemBlipNameOnMap)
-    end
-  end)
-end
-
-function ShowBackBlip(var)
-  if not BackBlipShowing then
-    local _var = var
-    BackBlipShowing = true
+function ShowReturnBlip(coords)
+  if not returnBlip then
+    local _coords = coords
+    returnBlip = true
     Citizen.CreateThread(function()
-      if Config.ShowBackBlip == 1 and not delivered then
+      if Config.ShowBackBlip == 1 and returnBlip then
         AllowSonarBlips(true)
-        while not delivered do
+        while returnBlip and questStarted do
           Wait(1000)
           ForceSonarBlipsThisFrame()
-          TriggerSonarBlip(348490638, _var.x, _var.y, _var.z)
+          TriggerSonarBlip(348490638, _coords.x, _coords.y, _coords.z)
         end
+        returnBlip = false
       end
     end)
   end
-end
-
-function ShowItemCircle(var)
-  local _var = var
-  Citizen.CreateThread(function()
-    while not gathered do
-      Wait(0)
-      if Config.ShowCircle and not gathered then
-        Citizen.InvokeNative(0x2A32FAA57B937173, -1795314153, _var.x, _var.y, _var.z, 1.0, 1.0, 1.0, 0.0, 0.0, 0.0, 2.0, 2.0, 1.5, Config.CircleColor[1], Config.CircleColor[2], Config.CircleColor[3], Config.CircleColor[4], true, false, 1, true)
-      end
-    end
-  end)
 end
 
 function Debug(var)
@@ -346,13 +399,17 @@ function SET_PED_RELATIONSHIP_GROUP_HASH ( iVar0, iParam0 )
 end
 
 function _GET_DEFAULT_RELATIONSHIP_GROUP_HASH ( iParam0 )
-  return Citizen.InvokeNative( 0x3CC4A718C258BDD0 , iParam0 );
+  return Citizen.InvokeNative( 0x3CC4A718C258BDD0 , iParam0 )
 end
 
-function modelrequest(model)
-  Citizen.CreateThread(function()
-    RequestModel(model)
-  end)
+function ModelRequest(model)
+  local model = model
+  Citizen.CreateThread( function() RequestModel(model) end )
+  Wait(500)
+  while not HasModelLoaded(model) do
+    Citizen.CreateThread( function() RequestModel(model) end )
+    Wait(500)
+  end
 end
 
 local function DisplayHelp( _message, x, y, w, h, enableShadow, col1, col2, col3, a, centre )

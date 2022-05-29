@@ -10,59 +10,80 @@ AddEventHandler("ESRP_Quests:InitiateQuests", function()
   CreateDialogs()
 end)
 
-RegisterNetEvent("ESRP_Quests:AggroTarget")
-AddEventHandler("ESRP_Quests:AggroTarget", function(ped, ped_target)
-  Citizen.InvokeNative(0xCB0D8932, ped, ped_target, 0, 16)
-end)
-
 function CreateDialogs()
   Citizen.CreateThread(function()
-    for k, v in pairs(Config.Quests) do
-
-    TriggerEvent("ESRP_Dialog:createDialog", tonumber(Config.StartCount + k), Config.NPCTitle, Config.Quests[k]["Talk"]["Desc"], {
-      {name = Config.Quests[k]["Talk"]["1"], func = function(source) TriggerClientEvent('ESRP_Quests:StartQuest', source, Config.Quests[k]) end, focusOFF = true},
-      {name = Config.Quests[k]["Talk"]["2"], func = function(source) TriggerClientEvent('vorp:TipRight', source, Config.Quests[k]["Reply"]["2"], 5000) end, focusOFF = true},
-      {name = Config.Quests[k]["Talk"]["3"], func = function(source) TriggerClientEvent('vorp:TipRight', source, Config.Quests[k]["Reply"]["3"], 5000) end, focusOFF = true},
-    })
+    for i, quest in ipairs(Config.Quests) do
+      TriggerEvent("ESRP_Dialog:createDialog", tonumber(i + Config.StartCount), Config.NPCTitle, quest["Talk"]["Desc"], {
+        {name = quest["Talk"]["1"], func = function(source) TriggerClientEvent('ESRP_Quests:StartQuest', source, quest) end, focusOFF = true},
+        {name = quest["Talk"]["2"], func = function(source) TriggerClientEvent('vorp:TipRight', source, '"' .. quest["Reply"]["2"] .. '"', 5000) end, focusOFF = true},
+        {name = quest["Talk"]["3"], func = function(source) TriggerClientEvent('vorp:TipRight', source, '"' .. quest["Reply"]["3"] .. '"', 5000) end, focusOFF = true},
+      })
     end
   end)
 end
 
 RegisterNetEvent("ESRP_Quests:GatherItem")
 AddEventHandler("ESRP_Quests:GatherItem", function(itemName)
-  local _source = source
-  VORP.addItem(_source, itemName, 1)
-end)
+  local source = source
+  local itemName = itemName
+  VORP.addItem(source, itemName, 1)
+  TriggerClientEvent("vorp:TipRight", source, "You picked up: " .. itemName, 3000)
+end )
 
-RegisterNetEvent("ESRP_Quests:CheckItem")
-AddEventHandler("ESRP_Quests:CheckItem", function(itemName, money, xp)
-  local _source = source
-	local count = VORP.getItemCount(_source, itemName)
-  if count >= 1 then
-    VORP.subItem(_source, itemName, 1)
-    TriggerClientEvent("vorp:TipBottom", _source, Config.DeliveryInfo, 5000)
-    TriggerEvent('vorp:getCharacter', _source, function(user)
-      TriggerEvent("vorp:addMoney", _source, 0, money, _user)
-    end)
-  else
-    TriggerClientEvent("vorp:TipBottom", _source, Config.FailureInfo, 5000)
+RegisterNetEvent("ESRP_Quests:ItemsReturned")
+AddEventHandler("ESRP_Quests:ItemsReturned", function(questTargets, questRewards)
+  local source = source
+  local questTargets = questTargets
+  local questRewards = questRewards
+  local targetsGathered = 0
+  for _, target in ipairs(questTargets) do
+    if VORP.getItemCount(source, target["Name"]) > 0 then
+      VORP.subItem(source, target["Name"], 1)
+      targetsGathered = targetsGathered + 1
+    end
   end
-end)
+  if targetsGathered == #questTargets then
+    TriggerClientEvent("vorp:TipBottom", source, Config.DeliveryInfo, 5000)
+    Payout(source, questRewards)
+  else
+    TriggerClientEvent("vorp:TipBottom", source, Config.FailureInfo, 5000)
+  end
+end )
 
-RegisterNetEvent("ESRP_Quests:Payout")
-AddEventHandler("ESRP_Quests:Payout", function(money, xp)
-  local _source = source
-  TriggerEvent('vorp:getCharacter', _source, function(user)
-    TriggerEvent("vorp:addMoney", _source, 0, tonumber(money * 1.2), _user)
-  end)
-  TriggerClientEvent("vorp:Tip", _source, Config.DeliveryInfo, 5000)
-end)
+RegisterNetEvent("ESRP_Quests:GiveRewards")
+AddEventHandler("ESRP_Quests:GiveRewards", function(questRewards)
+  local source = source
+  local questRewards = questRewards
+  Payout(source, questRewards)
+end )
 
-RegisterNetEvent("ESRP_Quests:Payout2")
-AddEventHandler("ESRP_Quests:Payout2", function(money, xp)
-  local _source = source
-  TriggerEvent('vorp:getCharacter', _source, function(user)
-    TriggerEvent("vorp:addMoney", _source, 0, tonumber(money * 1.2), _user)
-  end)
-  TriggerClientEvent("vorp:Tip", _source, Config.DeliveryInfo, 5000)
+function Payout(source, questRewards)
+  local source = source
+  local questRewards = questRewards
+  TriggerClientEvent("vorp:Tip", source, Config.DeliveryInfo, 5000)
+  if questRewards.Xp > 0 then
+    TriggerEvent("vorp:addXp", source, questRewards.Xp)
+    TriggerClientEvent("vorp:TipRight", source, "Quest Reward: " .. questRewards.Xp .. "xp", 6000)
+    Wait(2000)
+  end
+  if questRewards.Cash > 0 then
+    TriggerEvent("vorp:addMoney", source, 0, questRewards.Cash)
+    TriggerClientEvent("vorp:TipRight", source, "Quest Reward: $" .. questRewards.Cash, 6000)
+    Wait(2000)
+  end
+  if questRewards.Gold > 0 then
+    TriggerEvent("vorp:addMoney", source, 1, questRewards.Gold)
+    TriggerClientEvent("vorp:TipRight", source, "Quest Reward: " .. questRewards.Gold .. " Gold", 6000)
+    Wait(2000)
+  end
+  for _, itemName in ipairs(questRewards.Items) do
+    VORP.addItem(source, itemName, 1)
+    TriggerClientEvent("vorp:TipRight", source, "Quest Reward: " .. itemName, 6000)
+    Wait(2000)
+  end
+end
+
+RegisterNetEvent("ESRP_Quests:AggroTarget")
+AddEventHandler("ESRP_Quests:AggroTarget", function(ped, ped_target)
+  Citizen.InvokeNative(0xCB0D8932, ped, ped_target, 0, 16)
 end)
