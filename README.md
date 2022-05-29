@@ -14,3 +14,38 @@ ESRP_Quests offers an easy way to implement quests into your RedM server! Via th
 - [esrp_dialog](https://github.com/bythewood/esrp_dialog)
 ## Progress
 [Trello](https://trello.com/c/PRHdadE4/17-quests)
+## Example Config Quest Entry
+```lua
+[24] = {
+	["Type"] = 3,
+	["Xp"] = math.random(20, 30), -- 20 to 30 xp
+	["Cash"] = math.random(20, 30), -- 20 to 30 cash
+	["Gold"] = math.random(1, 3), -- 1 to 3 gold
+	["Items"] = {
+		[1] = "consumable_medicine",
+		[2] = "consumable_coffee",
+	},
+	["Talk"] = {
+		["Desc"] = "There's a nearby group of outlaws that have a bounty on their heads. I could use those heads for my experiment... I'll pay you double what the state is paying if you bring them to me, dead or alive.",
+		["1"] = "Bandit brains coming right up!",
+		["2"] = "...or I could report you.",
+		["3"] = "No. Just... No.",
+	},
+	["Reply"] = {
+		["2"] = "You could, but the law often provides me corpses. I'm just helping the system.",
+		["3"] = "No? Perhaps someone braver will happen along, then.",
+	},
+	["Targets"] = {
+		[1] = {
+			["Name"] = "A_M_M_RANCHERTRAVELERS_WARM_01",
+			["Pos"] = vector3(-5993.3, -3140.4, -1),
+			["Aggro"] = true,
+		},
+		[2] = {
+			["Name"] = "A_M_M_RANCHERTRAVELERS_WARM_01",
+			["Pos"] = vector3(-5994.5, -3149.1, -1),
+			["Aggro"] = true,
+		},
+	},
+},
+```
