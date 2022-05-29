@@ -51,6 +51,7 @@ Citizen.CreateThread(function() -- sets up the quest giver NPCs and, hopefully, 
     SET_PED_RELATIONSHIP_GROUP_HASH(npc, model)
     SetEntityCanBeDamagedByRelationshipGroup(npc, false, `PLAYER`)
     SetEntityAsMissionEntity(npc, true, true)
+    SetBlockingOfNonTemporaryEvents(npc, true)
     SetModelAsNoLongerNeeded(model)
     loadedNPCs[#loadedNPCs+1] = npc
   end
