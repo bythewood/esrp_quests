@@ -179,7 +179,16 @@ function StartQuest(quest)
         TriggerEvent("vorp:Tip", Config.Info, 5000)
         ModelRequest(model)
         local npc = CreatePed(model, pos.x, pos.y, pos.z, true, true)
-        while not DoesEntityExist(npc) do Wait(500) end
+        local attempts = 0
+        while not DoesEntityExist(npc) do
+          attempts = attempts + 1
+          Wait(500)
+          if attempts >= 20 then -- spawn failed, try again, a bit higher
+            pos.z = pos.z + 0.2
+            npc = CreatePed(model, pos.x, pos.y, pos.z, true, true)
+            attempts = 0
+          end
+        end
         spawnedNPCs[#spawnedNPCs+1] = npc
         Citizen.InvokeNative(0x283978A15512B2FE, npc, true)
         local blip = Citizen.InvokeNative(0x23f74c2fda6e7c61, 953018525, npc)
@@ -210,7 +219,15 @@ function StartQuest(quest)
         if questStarted then
           ModelRequest(model)
           npc = CreatePed(model, pos.x, pos.y, pos.z, true, true)
-          while not DoesEntityExist(npc) do Wait(500) end
+          while not DoesEntityExist(npc) do
+            attempts = attempts + 1
+            Wait(500)
+            if attempts >= 20 then -- spawn failed, try again, a bit higher
+              pos.z = pos.z + 0.2
+              npc = CreatePed(model, pos.x, pos.y, pos.z, true, true)
+              attempts = 0
+            end
+          end
           spawnedNPCs[#spawnedNPCs+1] = npc
           Citizen.InvokeNative(0x283978A15512B2FE, npc, true)
           local blip = Citizen.InvokeNative(0x23f74c2fda6e7c61, 953018525, npc)
