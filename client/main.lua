@@ -45,8 +45,7 @@ Citizen.CreateThread(function() -- sets up the quest giver NPCs and, hopefully, 
     while not DoesEntityExist(npc) do
       attempts = attempts + 1
       Wait(500)
-      if attempts >= 20 then -- spawn failed, try again, a bit higher
-        pos.z = pos.z
+      if attempts >= 20 then -- spawn failed, try again
         npc = CreatePed(model, pos.x, pos.y, pos.z, heading, false, false, 0, 0)
         attempts = 0
       end
@@ -184,12 +183,13 @@ function StartQuest(quest)
         ModelRequest(model)
         local npc = CreatePed(model, pos.x, pos.y, pos.z, true, true)
         local attempts = 0
+        local posZ = pos.z
         while not DoesEntityExist(npc) do
           attempts = attempts + 1
           Wait(500)
           if attempts >= 20 then -- spawn failed, try again, a bit higher
-            pos.z = pos.z + 0.2
-            npc = CreatePed(model, pos.x, pos.y, pos.z, true, true)
+            posZ = posZ + 0.2
+            npc = CreatePed(model, pos.x, pos.y, posZ, true, true)
             attempts = 0
           end
         end
@@ -223,13 +223,14 @@ function StartQuest(quest)
         if questStarted then
           ModelRequest(model)
           npc = CreatePed(model, pos.x, pos.y, pos.z, true, true)
+          local posZ = pos.z
           local attempts = 0
           while not DoesEntityExist(npc) do
             attempts = attempts + 1
             Wait(500)
             if attempts >= 20 then -- spawn failed, try again, a bit higher
-              pos.z = pos.z + 0.2
-              npc = CreatePed(model, pos.x, pos.y, pos.z, true, true)
+              posZ = posZ + 0.2
+              npc = CreatePed(model, pos.x, pos.y, posZ, true, true)
               attempts = 0
             end
           end
@@ -333,13 +334,14 @@ function StartQuest(quest)
           local model = GetHashKey(guard)
           ModelRequest(model)
           local npc = CreatePed(model, math.random(-20, 20) + pos.x, math.random(-20, 20) + pos.y, pos.z, true, true)
+          local posZ = pos.z
           local attempts = 0
           while not DoesEntityExist(npc) do
             attempts = attempts + 1
             Wait(500)
             if attempts >= 20 then -- spawn failed, try again, a bit higher
-              pos.z = pos.z + 0.2
-              npc = CreatePed(model, math.random(-20, 20) + pos.x, math.random(-20, 20) + pos.y, pos.z, true, true)
+              posZ = posZ + 0.2
+              npc = CreatePed(model, math.random(-20, 20) + pos.x, math.random(-20, 20) + pos.y, posZ, true, true)
               attempts = 0
             end
           end
