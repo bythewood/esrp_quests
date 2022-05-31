@@ -2,6 +2,7 @@ local TalkGroup = GetRandomIntInRange(0, 0xffffff)
 local spawnedNPCs = {}
 local questStarted = false
 local returnBlip = false
+local createdBlips = {}
 
 Citizen.CreateThread(function() -- sets up quest dialog
   Wait(0)
@@ -145,9 +146,10 @@ function StartQuest(quest)
               TriggerSonarBlip(348490638, pos.x, pos.y, pos.z)
             end
           elseif Config.ItemShow == 2 and not gathered then
-            itemBlip = Citizen.InvokeNative(0x554d9d53f696d002, 1664425300, pos.x, pos.y, pos.z)
+            local itemBlip = Citizen.InvokeNative(0x554d9d53f696d002, 1664425300, pos.x, pos.y, pos.z)
             SetBlipSprite(itemBlip, Config.ItemBlipSprite)
             Citizen.InvokeNative(0x9CB1A1623062F402, itemBlip, Config.ItemBlipNameOnMap)
+            createdBlips[#createdBlips+1] = itemBlip
           end
         end)
         Citizen.CreateThread(function() -- show item circle while not gathered
@@ -174,7 +176,6 @@ function StartQuest(quest)
         end
         -- handle gathering cleanup, end of gather thread
         TriggerServerEvent("ESRP_Quests:GatherItem", name)
-        if itemBlip ~= nil then RemoveBlip(itemBlip) end
         questTargetsRemain = questTargetsRemain - 1
         if questTargetsRemain > 0 then 
           TriggerEvent("vorp:TipRight", questTargetsRemain .. " items remaining.", 5000)
@@ -206,6 +207,7 @@ function StartQuest(quest)
         Citizen.InvokeNative(0x283978A15512B2FE, npc, true)
         local blip = Citizen.InvokeNative(0x23f74c2fda6e7c61, 953018525, npc)
         Citizen.InvokeNative(0x9CB1A1623062F402, blip, 'Quest Target')
+        createdBlips[#createdBlips+1] = blip
         SetModelAsNoLongerNeeded(model)
         if aggro then
           Citizen.InvokeNative(0xF166E48407BAC484, npc, PlayerPedId(), 0, 16)
@@ -247,6 +249,7 @@ function StartQuest(quest)
           Citizen.InvokeNative(0x283978A15512B2FE, npc, true)
           local blip = Citizen.InvokeNative(0x23f74c2fda6e7c61, 953018525, npc)
           Citizen.InvokeNative(0x9CB1A1623062F402, blip, 'Target')
+          createdBlips[#createdBlips+1] = blip
           SetModelAsNoLongerNeeded(model)
           if aggro then
             Citizen.InvokeNative(0xF166E48407BAC484, npc, PlayerPedId(), 0, 16)
@@ -255,7 +258,9 @@ function StartQuest(quest)
         end
         while questStarted and not IsEntityDead(npc) and not IsPedHogtied(npc) do Wait(500) end -- wait for capture or kill
         Debug("t" .. targetNum .. ": Target captured or killed...")
-        Citizen.InvokeNative(0x9CB1A1623062F402, Citizen.InvokeNative(0x23f74c2fda6e7c61, 953018525, npc), 'Target') -- reapply blip, just in case they were killed
+        local blip = Citizen.InvokeNative(0x23f74c2fda6e7c61, 953018525, npc)
+        Citizen.InvokeNative(0x9CB1A1623062F402, blip, 'Target') -- reapply blip, just in case they were killed
+        createdBlips[#createdBlips+1] = blip
         while questStarted do -- wait for holding at target
           Wait(500)
           local coords = GetEntityCoords(PlayerPedId())
@@ -265,7 +270,9 @@ function StartQuest(quest)
           if holding ~= false then -- check if something picked up
             if distance < 3 or npc == holding then -- the distance exception is to allow for skin collection too
               npc = holding
-              Citizen.InvokeNative(0x9CB1A1623062F402, Citizen.InvokeNative(0x23f74c2fda6e7c61, 953018525, npc), 'Target') -- reapply blip, just in case user skinned target
+              local blip = Citizen.InvokeNative(0x23f74c2fda6e7c61, 953018525, npc)
+              Citizen.InvokeNative(0x9CB1A1623062F402, blip, 'Target') -- reapply blip, just in case user skinned target
+              createdBlips[#createdBlips+1] = blip
               break
             end
           end
@@ -319,6 +326,7 @@ function StartQuest(quest)
       end
     end
     returnBlip = false
+    PurgeBlips()
     if questStarted then
       if questType == 1 then
         -- server side check items and give rewards
@@ -403,6 +411,15 @@ function TalkPrompt()
     PromptSetGroup(TalkPrompt, TalkGroup)
     PromptRegisterEnd(TalkPrompt)
   end)
+end
+
+function PurgeBlips()
+  Debug("Purging" .. tostring(#createdBlips) .. " blips...")
+  for _, blip in pairs(createdBlips) do
+    RemoveBlip(blip)
+    Wait(100)
+  end
+  createdBlips = {}
 end
 
 function PurgeNPCs()
