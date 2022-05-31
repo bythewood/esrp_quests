@@ -315,10 +315,10 @@ function StartQuest(quest)
       local coords = GetEntityCoords(PlayerPedId())
       local distance = Vdist(coords.x, coords.y, coords.z, savedCoords.x, savedCoords.y, savedCoords.z)
       if distance < 3 then -- player has returned, end return blip thread and break loop
-        returnBlip = false
         break
       end
     end
+    returnBlip = false
     if questStarted then
       if questType == 1 then
         -- server side check items and give rewards
@@ -477,7 +477,7 @@ function IsPedHogtied(_ped)
   return Citizen.InvokeNative(0x3AA24CCC0D451379, _ped)
 end
 
-function dump(o)
+function Dump(o)
   if type(o) == 'table' then
      local s = '{ '
      for k,v in pairs(o) do
