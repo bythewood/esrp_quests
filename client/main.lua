@@ -114,7 +114,16 @@ function StartQuest(quest)
   local questType = 3
   if quest["Type"] ~= nil then questType = quest["Type"] end
 
+  local questJobs = {}
+  if quest["Jobs"] ~= nil then questJobs = quest["Jobs"] end
+  if quest["Job"] ~= nil then questJobs[#questJobs+1] = quest["Job"] end
+
+  local questRequires = {}
+  if quest["Requires"] ~= nil then questRequires = quest["Requires"] end
+
   Debug(questTargetsTotal .. " total targets. Quest type: " .. questType)
+
+  if quest["Reply"]["1"] ~= nil then TriggerEvent('vorp:TipRight', '"' .. quest["Reply"]["1"] .. '"', 5000) end
 
   for targetNum, target in ipairs(questTargets) do
     if questType == 1 then
@@ -299,7 +308,7 @@ function StartQuest(quest)
         TriggerEvent("vorp:TipBottom", Config.Info3, 10000)
       end
     end
-    while questStarted do
+    while questStarted and questType ~= 3 do -- player obviously returned for quest type 3
       Wait(1000)
       local coords = GetEntityCoords(PlayerPedId())
       local distance = Vdist(coords.x, coords.y, coords.z, savedCoords.x, savedCoords.y, savedCoords.z)
@@ -464,4 +473,17 @@ end
 
 function IsPedHogtied(_ped)
   return Citizen.InvokeNative(0x3AA24CCC0D451379, _ped)
+end
+
+function dump(o)
+  if type(o) == 'table' then
+     local s = '{ '
+     for k,v in pairs(o) do
+        if type(k) ~= 'number' then k = '"'..k..'"' end
+        s = s .. '['..k..'] = ' .. dump(v) .. ','
+     end
+     return s .. '} '
+  else
+     return tostring(o)
+  end
 end
