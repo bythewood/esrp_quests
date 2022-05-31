@@ -246,7 +246,7 @@ function StartQuest(quest)
           spawnedNPCs[#spawnedNPCs+1] = npc
           Citizen.InvokeNative(0x283978A15512B2FE, npc, true)
           local blip = Citizen.InvokeNative(0x23f74c2fda6e7c61, 953018525, npc)
-          Citizen.InvokeNative(0x9CB1A1623062F402, blip, 'Goal')
+          Citizen.InvokeNative(0x9CB1A1623062F402, blip, 'Target')
           SetModelAsNoLongerNeeded(model)
           if aggro then
             Citizen.InvokeNative(0xF166E48407BAC484, npc, PlayerPedId(), 0, 16)
@@ -255,6 +255,7 @@ function StartQuest(quest)
         end
         while questStarted and not IsEntityDead(npc) and not IsPedHogtied(npc) do Wait(500) end -- wait for capture or kill
         Debug("t" .. targetNum .. ": Target captured or killed...")
+        Citizen.InvokeNative(0x9CB1A1623062F402, Citizen.InvokeNative(0x23f74c2fda6e7c61, 953018525, npc), 'Target') -- reapply blip, just in case they were killed
         while questStarted do -- wait for holding at target
           Wait(500)
           local coords = GetEntityCoords(PlayerPedId())
@@ -264,6 +265,7 @@ function StartQuest(quest)
           if holding ~= false then -- check if something picked up
             if distance < 3 or npc == holding then -- the distance exception is to allow for skin collection too
               npc = holding
+              Citizen.InvokeNative(0x9CB1A1623062F402, Citizen.InvokeNative(0x23f74c2fda6e7c61, 953018525, npc), 'Target') -- reapply blip, just in case user skinned target
               break
             end
           end
