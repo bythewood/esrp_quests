@@ -83,6 +83,11 @@ AddEventHandler('ESRP_Quests:StartQuest', function(quest)
   StartQuest(quest)
 end)
 
+RegisterNetEvent('ESRP_Quests:IsQuesting')
+AddEventHandler('ESRP_Quests:IsQuesting', function(questNum)
+  TriggerServerEvent("ESRP_Quests:IsQuestingReply", questStarted, questNum)
+end)
+
 --[[ The main quest handler is below. ]]--
 
 function StartQuest(quest)
@@ -123,6 +128,8 @@ function StartQuest(quest)
   if quest["Requires"] ~= nil then questRequires = quest["Requires"] end
 
   Debug(questTargetsTotal .. " total targets. Quest type: " .. questType)
+
+  QuestTimer()
 
   if quest["Reply"]["1"] ~= nil then TriggerEvent('vorp:TipRight', '"' .. quest["Reply"]["1"] .. '"', 5000) end
 
@@ -193,13 +200,12 @@ function StartQuest(quest)
         ModelRequest(model)
         local npc = CreatePed(model, pos.x, pos.y, pos.z, true, true)
         local attempts = 0
-        local posZ = pos.z
+
         while not DoesEntityExist(npc) do
           attempts = attempts + 1
           Wait(500)
-          if attempts >= 20 then -- spawn failed, try again, a bit higher
-            posZ = posZ + 0.2
-            npc = CreatePed(model, pos.x, pos.y, posZ, true, true)
+          if attempts >= 20 then -- spawn failed, try again
+            npc = CreatePed(model, pos.x, pos.y, pos.z, true, true)
             attempts = 0
           end
         end
@@ -234,14 +240,12 @@ function StartQuest(quest)
         if questStarted then
           ModelRequest(model)
           npc = CreatePed(model, pos.x, pos.y, pos.z, true, true)
-          local posZ = pos.z
           local attempts = 0
           while not DoesEntityExist(npc) do
             attempts = attempts + 1
             Wait(500)
-            if attempts >= 20 then -- spawn failed, try again, a bit higher
-              posZ = posZ + 0.2
-              npc = CreatePed(model, pos.x, pos.y, posZ, true, true)
+            if attempts >= 20 then -- spawn failed, try again
+              npc = CreatePed(model, pos.x, pos.y, pos.z, true, true)
               attempts = 0
             end
           end
@@ -270,7 +274,8 @@ function StartQuest(quest)
           if holding ~= false then -- check if something picked up
             if distance < 3 or npc == holding then -- the distance exception is to allow for skin collection too
               npc = holding
-              local blip = Citizen.InvokeNative(0x23f74c2fda6e7c61, 953018525, npc)
+              RemoveBlip(blip)
+              blip = Citizen.InvokeNative(0x23f74c2fda6e7c61, 953018525, npc)
               Citizen.InvokeNative(0x9CB1A1623062F402, blip, 'Target') -- reapply blip, just in case user skinned target
               createdBlips[#createdBlips+1] = blip
               break
@@ -353,14 +358,12 @@ function StartQuest(quest)
           local model = GetHashKey(guard)
           ModelRequest(model)
           local npc = CreatePed(model, math.random(-20, 20) + pos.x, math.random(-20, 20) + pos.y, pos.z, true, true)
-          local posZ = pos.z
           local attempts = 0
           while not DoesEntityExist(npc) do
             attempts = attempts + 1
             Wait(500)
             if attempts >= 20 then -- spawn failed, try again, a bit higher
-              posZ = posZ + 0.2
-              npc = CreatePed(model, math.random(-20, 20) + pos.x, math.random(-20, 20) + pos.y, posZ, true, true)
+              npc = CreatePed(model, math.random(-20, 20) + pos.x, math.random(-20, 20) + pos.y, pos.z, true, true)
               attempts = 0
             end
           end
@@ -378,6 +381,22 @@ end
 --[[ The main quest handler is above. ]]--
 
 --[[ DEVS BEWARE, FOR BEYOND HERE THERE BE FUNCTIONS ]]--
+
+function QuestTimer()
+  Citizen.CreateThread(function()
+    Wait(0)
+    local hourSeconds = 60 * 60
+    local secondsWaited = 0
+    while questStarted do
+      Wait(1000)
+      secondsWaited = secondsWaited + 1
+      if secondsWaited > hourSeconds then
+        questStarted = false
+        TriggerEvent("vorp:Tip", "Your previous quest expired (1 hour).", 10000)
+      end
+    end
+  end)
+end
 
 function QuestCancel()
   Citizen.CreateThread(function()
@@ -414,7 +433,7 @@ function TalkPrompt()
 end
 
 function PurgeBlips()
-  Debug("Purging" .. tostring(#createdBlips) .. " blips...")
+  Debug("Purging " .. tostring(#createdBlips) .. " blips...")
   for _, blip in pairs(createdBlips) do
     RemoveBlip(blip)
     Wait(100)
@@ -451,7 +470,7 @@ end
 
 function Debug(var)
   if Config.Debug then
-    print(var)
+    print(Dump(var))
   end
 end
 

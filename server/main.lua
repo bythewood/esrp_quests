@@ -1,3 +1,5 @@
+local questActive = {}
+
 data = {}
 TriggerEvent("vorp_inventory:getData", function(call)
   data = call
@@ -13,14 +15,52 @@ end)
 function CreateDialogs()
   Citizen.CreateThread(function()
     for i, quest in ipairs(Config.Quests) do
+      questActive[i] = false
       TriggerEvent("ESRP_Dialog:createDialog", tonumber(i + Config.StartCount), Config.NPCTitle, quest["Talk"]["Desc"], {
-        {name = quest["Talk"]["1"], func = function(source) TriggerClientEvent('ESRP_Quests:StartQuest', source, quest) end, focusOFF = true},
+        {name = quest["Talk"]["1"], func = function(source) StartClientQuest(source, i, quest) end, focusOFF = true},
         {name = quest["Talk"]["2"], func = function(source) TriggerClientEvent('vorp:TipRight', source, '"' .. quest["Reply"]["2"] .. '"', 5000) end, focusOFF = true},
         {name = quest["Talk"]["3"], func = function(source) TriggerClientEvent('vorp:TipRight', source, '"' .. quest["Reply"]["3"] .. '"', 5000) end, focusOFF = true},
       })
     end
   end)
 end
+
+function StartClientQuest(source, questNum, quest)
+  if questActive[questNum] then
+    TriggerClientEvent("vorp:TipRight", source, '"' .. "Sorry... I just remembered I sent someone else to do that already." .. '"', 10000)
+    TriggerClientEvent("vorp:Tip", source, "That quest is being ran by another player. Try again later.", 10000)
+  else
+    questActive[questNum] = true
+    TriggerClientEvent('ESRP_Quests:StartQuest', source, quest)
+    Wait(10000)
+    QuestWatcher(source, questNum)
+  end
+end
+
+function QuestWatcher(source, questNum)
+  Citizen.CreateThread(function()
+    local source = source
+    local questNum = questNum
+    while questActive[questNum] do
+      Wait(5000)
+      if GetPlayerPed(source) == nil then
+        Debug("quest watcher reports player left before finishing quest #" .. questNum)
+        questActive[questNum] = false
+      end
+      TriggerClientEvent("ESRP_Quests:IsQuesting", source, questNum)
+    end
+  end)
+end
+
+RegisterNetEvent("ESRP_Quests:IsQuestingReply")
+AddEventHandler("ESRP_Quests:IsQuestingReply", function(isQuesting, questNum)
+  local isQuesting = isQuesting
+  local questNum = questNum
+  if not isQuesting then
+    Debug("quest watcher reports player completed quest #" .. questNum)
+    questActive[questNum] = false
+  end
+end)
 
 RegisterNetEvent("ESRP_Quests:GatherItem")
 AddEventHandler("ESRP_Quests:GatherItem", function(itemName)
@@ -87,3 +127,9 @@ RegisterNetEvent("ESRP_Quests:AggroTarget")
 AddEventHandler("ESRP_Quests:AggroTarget", function(ped, ped_target)
   Citizen.InvokeNative(0xCB0D8932, ped, ped_target, 0, 16)
 end)
+
+function Debug(var)
+  if Config.Debug then
+    print(var)
+  end
+end
