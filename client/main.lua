@@ -98,6 +98,8 @@ function StartQuest(quest)
 
   local savedCoords = quest["SavedCoords"]
 
+  local _, _, relGroupHash = AddRelationshipGroup()
+
   local questRewards = {}
   questRewards.Cash = 0
   if quest["Cash"] ~= nil then questRewards.Cash = quest["Cash"] end
@@ -116,6 +118,11 @@ function StartQuest(quest)
   
   local questTargetsTotal = #questTargets
   local questTargetsRemain = #questTargets
+
+  local immunityToQuestNPCs = true
+  if Config.NPCsImmuneToQuestNPCs ~= nil then immunityToQuestNPCs = Config.NPCsImmuneToQuestNPCs end
+  local immunityToAllNPCs = false
+  if Config.NPCsImmuneToAllNPCs ~= nil then immunityToAllNPCs = Config.NPCsImmuneToAllNPCs end
 
   local questType = 3
   if quest["Type"] ~= nil then questType = quest["Type"] end
@@ -344,9 +351,9 @@ function StartQuest(quest)
       questStarted = false -- allows another quest to be taken
       PurgeNPCs() -- purge quest-spawned npcs
       TriggerEvent("vorp:Tip", "You may now take another quest.", 10000)
-    else
-      PurgeNPCs() -- purge quest-spawned npcs
     end
+    PurgeNPCs()
+    RemoveRelationshipGroup(relGroupHash)
   end)
   for _, target in ipairs(questTargets) do
     Citizen.CreateThread(function()
@@ -373,6 +380,23 @@ function StartQuest(quest)
           TriggerServerEvent("ESRP_Quests:AggroTarget", npc, PlayerPedId())
           spawnedNPCs[#spawnedNPCs+1] = npc
         end
+      end
+    end)
+  end
+  if immunityToQuestNPCs or immunityToAllNPCs then
+    Citizen.CreateThread(function()
+      Wait(0)
+      for i = 0, 30 do -- this is to make sure we catch all NPCs as they get spawned in
+        for _, npc in ipairs(spawnedNPCs) do
+          if immunityToAllNPCs then
+            SetEntityOnlyDamagedByRelationshipGroup(npc, true, GetPedRelationshipGroupHash(PlayerPedId()))
+          elseif immunityToQuestNPCs then
+            SetPedRelationshipGroupHash(npc, relGroupHash)
+            SetEntityCanBeDamagedByRelationshipGroup(npc, false, relGroupHash)
+          end
+        end
+        Wait(1000)
+        if not questStarted then break end
       end
     end)
   end
