@@ -2,26 +2,31 @@
 
 Config = {}
 
-Config.Presstext = "Press"
-Config.Talktext = "Talk with"
-Config.NPCTitle = "&#10029; Mission Offer &#10029;"
 Config.Debug = false -- true/false Debug Mode
-Config.Info = "The position is marked on your map."
-Config.Info2 = "Bring back the item to get your reward."
-Config.Info3 = "Return to the one who tasked you for your reward."
-Config.Info4 = "Bring back the animal skin to get your reward."
+
 Config.ShowBlips = true -- Show NPC blips
 Config.ItemShow = 1 -- 1: Show Area, 2: Show exact position, 3: None
-Config.ItemBlipNameOnMap = "Quest Item"
 Config.ItemBlipSprite = 1366733613
 Config.ShowBackBlip = 1 -- 1: Show Area, 2: None
-Config.DeliveryInfo = "A job well done! Here's your reward."
-Config.FailureInfo = "What a shame... I'm afraid you failed..."
 Config.ShowCircle = true -- Shows circle on item
 Config.MarkAnimal = true -- Marks animal on the map
 Config.CircleColor = {0,176,0,150} -- Circle Colors(r,g,b,a)
 Config.Cooldown = 30000 -- Cooldown beetwen the missions
 Config.StartCount = 20 -- Starting Dialog ID
+
+Config.Presstext = "Press"
+Config.Talktext = "Talk with"
+Config.NPCTitle = "&#10029; Mission Offer &#10029;"
+Config.Info = "The position is marked on your map."
+Config.Info2 = "Bring back the item to get your reward."
+Config.Info3 = "Return to the one who tasked you for your reward."
+Config.Info4 = "Bring back the animal skin to get your reward."
+Config.ItemBlipNameOnMap = "Quest Item"
+Config.DeliveryInfo = "A job well done! Here's your reward."
+Config.FailureInfo = "What a shame... I'm afraid you failed..."
+
+Config.NPCsImmuneToQuestNPCs = true -- Makes spawned NPCs immune to quest NPCs, to stop quest targets from killing each other
+Config.NPCsImmuneToAllNPCs = false -- Makes spawned NPCs immune to all NPCs
 
 -- quest types: 1-item, 2-kill, 3-skin
 
