@@ -12,8 +12,6 @@ ESRP_Quests offers an easy way to implement quests into your RedM server! Via th
 ## Dependencies
 - [vorp_core](https://github.com/VORPCORE/vorp-core-lua)
 - [esrp_dialog](https://github.com/bythewood/esrp_dialog)
-## Progress
-[Trello](https://trello.com/c/PRHdadE4/17-quests)
 ## Example Config Quest Entry
 ```lua
 [24] = {
